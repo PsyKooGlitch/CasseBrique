@@ -90,8 +90,8 @@ void Attente(int milli);
 
 
 //Raquette
-void * raquetteThread ();
-
+void * raquetteThread (void *);
+void destructeurraq(void *p);
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc,char* argv[])
 {
@@ -159,11 +159,11 @@ void Attente(int milli)
 }
 
 
-void * raquetteThread ()
+void * raquetteThread (void *)
 {
 	pthread_key_t macle;
-	S_RAQUETTE *raquette;
-	pthread_key_create(&macle, NULL);
+	S_RAQUETTE * raquette;
+	pthread_key_create(&macle, destructeurraq);
 	
 	
 	//Alloue la taille
@@ -172,8 +172,14 @@ void * raquetteThread ()
 	 raquette->C = 10;
 	 raquette->longeur = 5;
 	 raquette->billeSurRaquette = false;
-	 pthread_setspecific(&macle, raquette);
-	 DessineRaquette(19,10,5);
-	 
+	 pthread_setspecific(macle,(void *)raquette);
+	 DessineRaquette(raquette->L,raquette->C,raquette->longeur);
+	 pause();
+}
+
+void destructeurraq(void *p)
+{
+puts("Je me libere (Raquette)");
+free(p);
 }
 
