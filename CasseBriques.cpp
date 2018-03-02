@@ -68,6 +68,14 @@ typedef struct
 	bool billeSurRaquette;
 } S_RAQUETTE;
 
+typedef struct
+{
+	int L;
+	int C;
+	int dir;
+	bool couleur;
+} S_BILLE;
+
 #define NB_BRIQUES      56     // nombre de briques au depart
 S_BRIQUE Briques[]
 ={ {2,2,GRIS,1,0,0},{2,4,GRIS,1,0,0},{2,6,GRIS,1,0,0},{2,8,GRIS,1,0,0},
