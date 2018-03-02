@@ -60,6 +60,14 @@ typedef struct
   int bonus;
 } S_BRIQUE;
 
+typedef struct
+{
+	int L;
+	int C;
+	int longeur;
+	bool billeSurRaquette;
+} S_RAQUETTE;
+
 #define NB_BRIQUES      56     // nombre de briques au depart
 S_BRIQUE Briques[]
 ={ {2,2,GRIS,1,0,0},{2,4,GRIS,1,0,0},{2,6,GRIS,1,0,0},{2,8,GRIS,1,0,0},
@@ -79,14 +87,21 @@ S_BRIQUE Briques[]
 
 void Attente(int milli);
 
+
+
+//Raquette
+void * raquetteThread (void *);
+void destructeurraq(void *p);
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 int main(int argc,char* argv[])
 {
+	pthread_t HanleRaquette;
+	
   EVENT_GRILLE_SDL event;
   char ok;
  
   srand((unsigned)time(NULL));
-
+	
   // Ouverture de la fenetre graphique
   printf("(THREAD MAIN %d) Ouverture de la fenetre graphique\n",pthread_self()); fflush(stdout);
   if (OuvertureFenetreGraphique() < 0)
@@ -96,8 +111,9 @@ int main(int argc,char* argv[])
     exit(1);
   }
 
+pthread_create(&HanleRaquette, NULL, (void *(*) (void *))raquetteThread, NULL);
   // Exemple d'utilisation de GrilleSDL et Ressources --> code a supprimer
-  DessineRaquette(17,7,5);  // Attention !!! tab n'est pas modifie --> a vous de le faire !!!
+  //DessineRaquette(17,7,5);  // Attention !!! tab n'est pas modifie --> a vous de le faire !!!
   DessineChiffre(2,1,9);
   DessineBrique(5,9,ROUGE,0);
   DessineBrique(7,4,VERT,1);
@@ -134,10 +150,36 @@ int main(int argc,char* argv[])
 //*********************************************************************************************
 void Attente(int milli)
 {
+	
+	
   struct timespec delai;
   delai.tv_sec = milli/1000;
   delai.tv_nsec = (milli%1000)*1000000;
   nanosleep(&delai,NULL);
 }
 
+
+void * raquetteThread (void *)
+{
+	pthread_key_t macle;
+	S_RAQUETTE * raquette;
+	pthread_key_create(&macle, destructeurraq);
+	
+	
+	//Alloue la taille
+	 raquette = (S_RAQUETTE *)malloc(sizeof(S_RAQUETTE));
+	 raquette->L = 19;
+	 raquette->C = 10;
+	 raquette->longeur = 5;
+	 raquette->billeSurRaquette = false;
+	 pthread_setspecific(macle,(void *)raquette);
+	 DessineRaquette(raquette->L,raquette->C,raquette->longeur);
+	 pause();
+}
+
+void destructeurraq(void *p)
+{
+puts("Je me libere (Raquette)");
+free(p);
+}
 
