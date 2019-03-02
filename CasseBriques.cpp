@@ -73,8 +73,10 @@ typedef struct
 	int L;
 	int C;
 	int dir;
-	bool couleur;
+	int couleur;
 } S_BILLE;
+
+
 
 #define NB_BRIQUES      56     // nombre de briques au depart
 S_BRIQUE Briques[]
@@ -101,14 +103,24 @@ void effacer(int l,int c, int longeur);
 void * raquetteThread (void *);
 void destructeurraq(void *p);
 void HandleRaquetteSig(int sig);
+void DessineRaquette2(int l, int c, int longeur);
+//Bille
+void destructeurbille(void *p);
+void * raquetteThread (S_BILLE *);
+void avancebille(S_BILLE * pbille);
+void DessineBille2(int l, int c, int couleur);
+
+//Brique
+void DessineBrique2(int l, int c, int couleur, int coups);
 
 //Event
 void * eventThread (void *);
 
 //Def
 pthread_key_t macle;
+pthread_key_t cleBille;
 pthread_mutex_t mutextab;
-///////////////////////////////////////////////////////////////////////////////////////////////////
+//
 int main(int argc,char* argv[])
 {
 	struct sigaction SigAct;
@@ -142,13 +154,12 @@ int main(int argc,char* argv[])
 	pthread_create(&HandleEvent, NULL, (void *(*) (void *))eventThread, NULL);
   // Exemple d'utilisation de GrilleSDL et Ressources --> code a supprimer
   //DessineRaquette(17,7,5);  // Attention !!! tab n'est pas modifie --> a vous de le faire !!!
-  pthread_mutex_lock(&mutextab);
-  DessineChiffre(2,1,9);
-  DessineBrique(5,9,ROUGE,0);
-  DessineBrique(7,4,VERT,1);
-  DessineBille(10,5,JAUNE);
-  DessineDiamant(12,16,MAUVE);
-  pthread_mutex_unlock(&mutextab);
+//  DessineChiffre(2,1,9);
+    DessineBrique2(5,9,ROUGE,0);
+//  DessineBrique(7,4,VERT,1);
+//  DessineBille(10,5,JAUNE);
+//  DessineDiamant(12,16,MAUVE);
+
   
 //  ok = 0;
 //  while(!ok)
@@ -190,6 +201,135 @@ void Attente(int milli)
   nanosleep(&delai,NULL);
 }
 
+void * billeThread(S_BILLE * pbille)
+{
+
+	pthread_key_create(&cleBille, destructeurbille);
+	pthread_setspecific(cleBille,pbille);
+	pthread_mutex_lock(&mutextab);
+	DessineBille(pbille->L,pbille->C,pbille->couleur);
+	tab[pbille->L][pbille->C] = -2;
+	pthread_mutex_unlock(&mutextab);
+	while(1)
+	{
+		Attente(200);
+		effacer(pbille->L,pbille->C,1);
+		//Test dessous
+		if(pbille->L==20)
+		{
+		pthread_exit(0);
+		}
+		//Test bords
+		//Bords gauche
+		if(pbille->C == 0 or pbille->C == 19){
+			switch (pbille->dir){
+				case NE:
+					pbille->dir = NO;
+				break;
+				case NO:
+					pbille->dir = NE;
+				break;
+				case SE:
+					pbille->dir = SO;
+				break;
+				case SO:
+					pbille->dir = SE;
+				break;
+				}
+		}
+		//test dessus
+		if(pbille->L == 1)
+		{
+		switch (pbille->dir){
+			case NE:
+				pbille->dir = SE;
+			break;
+			case NO:
+				pbille->dir = SO;
+			break;
+		}
+		}
+		
+	//Mutex pour verif obs
+	pthread_mutex_lock(&mutextab);		
+	//Objet au dessus
+	if(pbille->dir == NE or pbille->dir == NO)
+	{
+		if(tab[pbille->L-1][pbille->C] !=0)
+		{
+			if(pbille->dir == NE){pbille->dir = SE;}
+			if(pbille->dir == NO){pbille->dir = SO;}
+		}
+	}
+	
+	//Objet en dessous
+		if(pbille->dir == SE or pbille->dir == SO)
+	{
+		if(tab[pbille->L+1][pbille->C] !=0)
+		{
+			if(pbille->dir == SE){pbille->dir = NE;}
+			if(pbille->dir == SO){pbille->dir = NO;}
+		}
+	}
+
+	//Objet a droite
+	if(pbille->dir == SE or pbille->dir == NE)
+	{
+		if(tab[pbille->L][pbille->C+1] !=0)
+		{
+			if(pbille->dir == SE){pbille->dir = SO;}
+			if(pbille->dir == NE){pbille->dir = NO;}
+		}
+	}
+	
+	//Objet a gauche
+	if(pbille->dir == NO or pbille->dir == SO)
+	{
+		if(tab[pbille->L][pbille->C-1] !=0)
+		{
+			if(pbille->dir == NO){pbille->dir = NE;}
+			if(pbille->dir == SO){pbille->dir = SE;}
+		}
+	}
+	pthread_mutex_unlock(&mutextab);
+	
+	
+		
+		avancebille(pbille);
+		DessineBille2(pbille->L,pbille->C,pbille->couleur);
+	}
+	
+pthread_exit(0);
+return NULL;
+}
+
+void avancebille(S_BILLE * pbille)
+{
+//Verif de ne rien cogner (brique,autre)
+	
+switch (pbille->dir){
+	case NE:
+		pbille->C = pbille->C +1;
+		pbille->L = pbille->L -1;
+		break;
+	case NO:
+		pbille->C = pbille->C -1;
+		pbille->L = pbille->L -1;
+		break;
+	case SE:
+		pbille->C = pbille->C +1;
+		pbille->L = pbille->L +1;
+	break;
+	case SO:
+		pbille->C = pbille->C -1;
+		pbille->L = pbille->L +1;
+	break;
+	}
+	
+
+	
+	return;
+}
 
 void * raquetteThread (void *)
 {
@@ -214,20 +354,27 @@ void * raquetteThread (void *)
 	SigAct.sa_flags = 0;
 	sigaction(SIGUSR1,&SigAct, NULL);
 	sigaction(SIGUSR2,&SigAct, NULL);
+	sigaction(SIGHUP,&SigAct, NULL);
+
 	
-	 pthread_mutex_lock(&mutextab);
-	 DessineRaquette(raquette->L,raquette->C,raquette->longeur);
-	 DessineBille(raquette->L-1,raquette->C,ROUGE);
-	 pthread_mutex_unlock(&mutextab);
+	DessineRaquette2(raquette->L,raquette->C,raquette->longeur);
+	DessineBille2(raquette->L-1,raquette->C,ROUGE);
+
+	
 	 while(1);
 }
 
 void destructeurraq(void *p)
 {
 puts("Je me libere (Raquette)");
-free(p);
+//free(p);
 }
 
+void destructeurbille(void *p)
+{
+puts("Je me libere (Bille)");
+free(p);
+}
 
 void * eventThread (void *)
 {
@@ -236,6 +383,7 @@ void * eventThread (void *)
 	{
 		event = ReadEvent();
 		if(event.type == CROIX){pthread_exit(0);}
+		if (event.type != CLAVIER){continue;}
 		switch (event.touche){
 		case (KEY_LEFT):
 			kill(getpid(), SIGUSR1);
@@ -261,10 +409,12 @@ void HandleRaquetteSig(int sig)
 	int positiondebut;
 	int positionfin;
 	S_RAQUETTE * raquettept;
+	pthread_t HandleBille;
 	//Recup de la variable specifique
 	raquettept =  (S_RAQUETTE *)pthread_getspecific(macle);
 	positiondebut = raquettept->C - ((raquettept->longeur-1)/2);
 	positionfin = raquettept->C + ((raquettept->longeur-1)/2);
+	if(sig==SIGUSR1 or sig==SIGUSR2){
 	if(sig == SIGUSR1){
 		 if(positiondebut > 0)
 		 {
@@ -274,9 +424,8 @@ void HandleRaquetteSig(int sig)
 		 	if(raquettept->billeSurRaquette == true)
 		 	{	
 		 		effacer(raquettept->L-1,raquettept->C+1,1);
-		 		pthread_mutex_lock(&mutextab);
-		 		DessineBille(raquettept->L-1,raquettept->C,ROUGE);
-		 		pthread_mutex_unlock(&mutextab);
+		 		DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
+
 		 	}
 		 	
 		 }
@@ -286,23 +435,65 @@ void HandleRaquetteSig(int sig)
 		if(sig == SIGUSR2){
 			if(positionfin < 19)
 			{
-				//pthread_mutex_lock(&mutextab);
 				effacer(19,positiondebut,raquettept->longeur);
 				raquettept->C = raquettept->C + 1;
 				if(raquettept->billeSurRaquette == true)
 		 		{	
 		 			effacer(raquettept->L-1,raquettept->C-1,1);
-		 			pthread_mutex_lock(&mutextab);
-		 			DessineBille(raquettept->L-1,raquettept->C,ROUGE);
-		 			pthread_mutex_unlock(&mutextab);
+		 			DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
 		 		}
 				
 			}
 		}
 	}
 	positiondebut = raquettept->C - ((raquettept->longeur-1)/2);
+	DessineRaquette2(raquettept->L,raquettept->C,raquettept->longeur);
+	}
+	
+	if(sig==SIGHUP and raquettept->billeSurRaquette == true)
+	{
+		raquettept->billeSurRaquette = false;
+		S_BILLE * pbille;
+		pbille = (S_BILLE *)malloc(sizeof(S_BILLE));
+		if(pbille==NULL){puts("Erreur mallocc");}
+		pbille->L = raquettept->L-1;
+		pbille->C = raquettept->C;
+		pbille->couleur = ROUGE;
+		pbille->dir = NO;	
+		pthread_create(&HandleBille, NULL, (void *(*) (void *))billeThread, pbille);
+		
+	}
+}
+
+void DessineRaquette2(int l, int c, int longeur)
+{
+	int i;
+	int positiondebut = c- ((longeur-1)/2);
 	pthread_mutex_lock(&mutextab);
-	DessineRaquette(raquettept->L,raquettept->C,raquettept->longeur);
+	for(i=0;i<longeur;i++)
+	{
+		tab[l][positiondebut+i] = -1;
+	}
+	DessineRaquette(l,c,longeur);
+	pthread_mutex_unlock(&mutextab);
+}
+
+void DessineBille2(int l, int c, int couleur)
+{
+	pthread_mutex_lock(&mutextab);
+	tab[l][c] = -2;
+	DessineBille(l,c,couleur);
+	pthread_mutex_unlock(&mutextab);
+}
+
+
+
+void DessineBrique2(int l, int c, int couleur, int coups)
+{
+	pthread_mutex_lock(&mutextab);
+	tab[l][c] = -4;
+	tab[l][c+1] = -4;
+	DessineBrique(l,c,couleur,coups);
 	pthread_mutex_unlock(&mutextab);
 }
 
@@ -313,6 +504,7 @@ void effacer(int l,int c, int longeur)
 	for(i=0;i<longeur;i++)
 	{
 		EffaceCarre(l,c);
+		tab[l][c] = 0;
 		c++;
 	}
 	pthread_mutex_unlock(&mutextab);
