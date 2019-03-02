@@ -113,6 +113,7 @@ void DessineBille2(int l, int c, int couleur);
 //Brique
 void DessineBrique2(int l, int c, int couleur, int coups);
 void * briqueThread (S_BRIQUE *);
+void HandleBriqueSig(int sig);
 void destructeurbri(void *p);
 //Event
 void * eventThread (void *);
@@ -150,6 +151,7 @@ int main(int argc,char* argv[])
 	sigaddset(&mask, SIGUSR1);
 	sigaddset(&mask, SIGUSR2);
 	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGTRAP);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	
 	
@@ -269,6 +271,10 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == NE){pbille->dir = SE;}
 			if(pbille->dir == NO){pbille->dir = SO;}
+			char buffer[50];
+			sprintf(buffer,"Je tape %d", tab[pbille->L-1][pbille->C]);
+			puts(buffer);
+			pthread_kill(tab[pbille->L-1][pbille->C],SIGTRAP);
 		}
 	}
 	
@@ -279,6 +285,7 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == SE){pbille->dir = NE;}
 			if(pbille->dir == SO){pbille->dir = NO;}
+			pthread_kill(tab[pbille->L+1][pbille->C],SIGTRAP);
 		}
 	}
 
@@ -289,6 +296,7 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == SE){pbille->dir = SO;}
 			if(pbille->dir == NE){pbille->dir = NO;}
+			pthread_kill(tab[pbille->L][pbille->C-1],SIGTRAP);
 		}
 	}
 	
@@ -299,6 +307,7 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == NO){pbille->dir = NE;}
 			if(pbille->dir == SO){pbille->dir = SE;}
+			pthread_kill(tab[pbille->L][pbille->C-1],SIGTRAP);
 		}
 	}
 	
@@ -306,21 +315,25 @@ void * billeThread(S_BILLE * pbille)
 	if(pbille->dir == SE)
 	{
 		if(tab[pbille->L+1][pbille->C+1] !=0 and tab[pbille->L+1][pbille->C+1] !=-1){pbille->dir = SO;}
+		pthread_kill(tab[pbille->L+1][pbille->C-1],SIGTRAP);
 	}
 	//Objet en bas a gauche
 	if(pbille->dir == SO)
 	{
 		if(tab[pbille->L+1][pbille->C-1] !=0 and tab[pbille->L+1][pbille->C-1] !=-1){pbille->dir = SE;}
+		pthread_kill(tab[pbille->L+1][pbille->C-1],SIGTRAP);
 	}
 	//Objet au dessus a droite
 	if(pbille->dir == NE)
 	{
 		if(tab[pbille->L-1][pbille->C+1] !=0 and tab[pbille->L-1][pbille->C+1] !=-1){pbille->dir = NO;}
+		pthread_kill(tab[pbille->L+1][pbille->C-1],SIGTRAP);
 	}
 	//objet au dessus a gauche
 	if(pbille->dir == NO)
 	{
 		if(tab[pbille->L-1][pbille->C-1] !=0 and tab[pbille->L-1][pbille->C-1] !=-1){pbille->dir = NE;}
+		pthread_kill(tab[pbille->L+1][pbille->C-1],SIGTRAP);
 	}
 	pthread_mutex_unlock(&mutextab);
 	
@@ -361,15 +374,30 @@ switch (pbille->dir){
 
 void * briqueThread (S_BRIQUE * briquept)
 {
+	sigset_t mask;
+	struct sigaction SigAct;
 	S_BRIQUE * brique;
 	pthread_key_create(&cleBrique, destructeurbri);
 	brique = (S_BRIQUE *)malloc(sizeof(S_BRIQUE));
 	memcpy(brique, briquept, sizeof(S_BRIQUE));
-	int status =0;
-	pthread_setspecific(macle,(void *)brique);
+	pthread_setspecific(cleBrique,(void *)brique);
 	DessineBrique2(brique->L, brique->C, brique->couleur, brique->brise);
 	
+	//Masque signal
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGUSR2);
+	sigaddset(&mask, SIGHUP);
+	sigprocmask(SIG_SETMASK, &mask,NULL);
+	//Arme les sig
+	SigAct.sa_handler = HandleBriqueSig;
+	SigAct.sa_flags = 0;
+	sigaction(SIGTRAP,&SigAct, NULL);
+	
+	while(1)
+	{
 	pause();
+	}
 }
 
 
@@ -390,6 +418,7 @@ void * raquetteThread (void *)
 	 
 	 	//Masque signal
 	sigemptyset(&mask);
+	sigaddset(&mask, SIGTRAP);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
 	SigAct.sa_handler = HandleRaquetteSig;
@@ -561,4 +590,15 @@ void effacer(int l,int c, int longeur)
 	pthread_mutex_unlock(&mutextab);
 }
 
+void HandleBriqueSig(int sig)
+{
+S_BRIQUE * brique;
+ brique = (S_BRIQUE *)pthread_getspecific(cleBrique);
+//printf("%d", brique->C);
+puts("ok");
+char buffer[50];
+sprintf(buffer,"Je suis le :%d", pthread_self());
+puts(buffer);
+
+}
 
