@@ -112,13 +112,15 @@ void DessineBille2(int l, int c, int couleur);
 
 //Brique
 void DessineBrique2(int l, int c, int couleur, int coups);
-
+void * briqueThread (S_BRIQUE *);
+void destructeurbri(void *p);
 //Event
 void * eventThread (void *);
 
 //Def
 pthread_key_t macle;
 pthread_key_t cleBille;
+pthread_key_t cleBrique;
 pthread_mutex_t mutextab;
 //
 int main(int argc,char* argv[])
@@ -127,6 +129,7 @@ int main(int argc,char* argv[])
 	sigset_t mask;
 	pthread_t HanleRaquette;
 	pthread_t HandleEvent;
+	pthread_t HandleBrique[NB_BRIQUES];
   
   EVENT_GRILLE_SDL event;
   char ok;
@@ -155,7 +158,7 @@ int main(int argc,char* argv[])
   // Exemple d'utilisation de GrilleSDL et Ressources --> code a supprimer
   //DessineRaquette(17,7,5);  // Attention !!! tab n'est pas modifie --> a vous de le faire !!!
 //  DessineChiffre(2,1,9);
-    DessineBrique2(5,9,ROUGE,0);
+    //DessineBrique2(5,9,ROUGE,0);
 //  DessineBrique(7,4,VERT,1);
 //  DessineBille(10,5,JAUNE);
 //  DessineDiamant(12,16,MAUVE);
@@ -180,6 +183,14 @@ int main(int argc,char* argv[])
 //  printf("Attente de 1500 millisecondes...\n");
 //  Attente(1500);
 
+int i;
+	for(i=0;i<NB_BRIQUES;i++)
+	{
+		pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
+	}
+		
+
+
   pthread_join(HandleEvent,NULL);
 
   // Fermeture de la fenetre
@@ -193,7 +204,6 @@ int main(int argc,char* argv[])
 //*********************************************************************************************
 void Attente(int milli)
 {
-	
 	
   struct timespec delai;
   delai.tv_sec = milli/1000;
@@ -291,6 +301,27 @@ void * billeThread(S_BILLE * pbille)
 			if(pbille->dir == SO){pbille->dir = SE;}
 		}
 	}
+	
+	//Objet en bas a droite
+	if(pbille->dir == SE)
+	{
+		if(tab[pbille->L+1][pbille->C+1] !=0 and tab[pbille->L+1][pbille->C+1] !=-1){pbille->dir = SO;}
+	}
+	//Objet en bas a gauche
+	if(pbille->dir == SO)
+	{
+		if(tab[pbille->L+1][pbille->C-1] !=0 and tab[pbille->L+1][pbille->C-1] !=-1){pbille->dir = SE;}
+	}
+	//Objet au dessus a droite
+	if(pbille->dir == NE)
+	{
+		if(tab[pbille->L-1][pbille->C+1] !=0 and tab[pbille->L-1][pbille->C+1] !=-1){pbille->dir = NO;}
+	}
+	//objet au dessus a gauche
+	if(pbille->dir == NO)
+	{
+		if(tab[pbille->L-1][pbille->C-1] !=0 and tab[pbille->L-1][pbille->C-1] !=-1){pbille->dir = NE;}
+	}
 	pthread_mutex_unlock(&mutextab);
 	
 	
@@ -305,8 +336,6 @@ return NULL;
 
 void avancebille(S_BILLE * pbille)
 {
-//Verif de ne rien cogner (brique,autre)
-	
 switch (pbille->dir){
 	case NE:
 		pbille->C = pbille->C +1;
@@ -326,10 +355,23 @@ switch (pbille->dir){
 	break;
 	}
 	
-
 	
 	return;
 }
+
+void * briqueThread (S_BRIQUE * briquept)
+{
+	S_BRIQUE * brique;
+	pthread_key_create(&cleBrique, destructeurbri);
+	brique = (S_BRIQUE *)malloc(sizeof(S_BRIQUE));
+	memcpy(brique, briquept, sizeof(S_BRIQUE));
+	int status =0;
+	pthread_setspecific(macle,(void *)brique);
+	DessineBrique2(brique->L, brique->C, brique->couleur, brique->brise);
+	
+	pause();
+}
+
 
 void * raquetteThread (void *)
 {
@@ -360,19 +402,28 @@ void * raquetteThread (void *)
 	DessineRaquette2(raquette->L,raquette->C,raquette->longeur);
 	DessineBille2(raquette->L-1,raquette->C,ROUGE);
 
-	
-	 while(1);
+	while(1)
+	{
+	 pause();
+	}
 }
 
 void destructeurraq(void *p)
 {
 puts("Je me libere (Raquette)");
-//free(p);
+free(p);
 }
 
 void destructeurbille(void *p)
 {
 puts("Je me libere (Bille)");
+free(p);
+}
+
+
+void destructeurbri(void *p)
+{
+puts("Je me libere (Brique)");
 free(p);
 }
 
@@ -472,7 +523,7 @@ void DessineRaquette2(int l, int c, int longeur)
 	pthread_mutex_lock(&mutextab);
 	for(i=0;i<longeur;i++)
 	{
-		tab[l][positiondebut+i] = -1;
+		tab[l][positiondebut+i] = pthread_self();
 	}
 	DessineRaquette(l,c,longeur);
 	pthread_mutex_unlock(&mutextab);
@@ -491,8 +542,8 @@ void DessineBille2(int l, int c, int couleur)
 void DessineBrique2(int l, int c, int couleur, int coups)
 {
 	pthread_mutex_lock(&mutextab);
-	tab[l][c] = -4;
-	tab[l][c+1] = -4;
+	tab[l][c] = pthread_self();
+	tab[l][c+1] = pthread_self();
 	DessineBrique(l,c,couleur,coups);
 	pthread_mutex_unlock(&mutextab);
 }
