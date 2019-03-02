@@ -274,9 +274,6 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == NE){pbille->dir = SE;}
 			if(pbille->dir == NO){pbille->dir = SO;}
-			char buffer[50];
-			sprintf(buffer,"Je tape %d", tab[pbille->L-1][pbille->C]);
-			puts(buffer);
 			impacte(tab[pbille->L-1][pbille->C]);
 		}
 	}
@@ -288,6 +285,7 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == SE){pbille->dir = NE;}
 			if(pbille->dir == SO){pbille->dir = NO;}
+			impacte(tab[pbille->L+1][pbille->C]);
 		}
 	}
 
@@ -298,6 +296,7 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == SE){pbille->dir = SO;}
 			if(pbille->dir == NE){pbille->dir = NO;}
+			impacte(tab[pbille->L][pbille->C+1]);
 		}
 	}
 	
@@ -308,28 +307,38 @@ void * billeThread(S_BILLE * pbille)
 		{
 			if(pbille->dir == NO){pbille->dir = NE;}
 			if(pbille->dir == SO){pbille->dir = SE;}
+			impacte(tab[pbille->L][pbille->C-1]);
 		}
 	}
 	
 	//Objet en bas a droite
 	if(pbille->dir == SE)
 	{
-		if(tab[pbille->L+1][pbille->C+1] !=0 and tab[pbille->L+1][pbille->C+1] !=-1){pbille->dir = SO;}
+		if(tab[pbille->L+1][pbille->C+1] !=0 and tab[pbille->L+1][pbille->C+1] !=-1){pbille->dir = SO;
+		impacte(tab[pbille->L+1][pbille->C+1]);
+		}
+		
 	}
 	//Objet en bas a gauche
 	if(pbille->dir == SO)
 	{
-		if(tab[pbille->L+1][pbille->C-1] !=0 and tab[pbille->L+1][pbille->C-1] !=-1){pbille->dir = SE;}
+		if(tab[pbille->L+1][pbille->C-1] !=0 and tab[pbille->L+1][pbille->C-1] !=-1){pbille->dir = SE;
+		impacte(tab[pbille->L+1][pbille->C-1]);
+		}
 	}
 	//Objet au dessus a droite
 	if(pbille->dir == NE)
 	{
-		if(tab[pbille->L-1][pbille->C+1] !=0 and tab[pbille->L-1][pbille->C+1] !=-1){pbille->dir = NO;}
+		if(tab[pbille->L-1][pbille->C+1] !=0 and tab[pbille->L-1][pbille->C+1] !=-1){pbille->dir = NO;
+		impacte(tab[pbille->L-1][pbille->C+1]);
+		}
 	}
 	//objet au dessus a gauche
 	if(pbille->dir == NO)
 	{
-		if(tab[pbille->L-1][pbille->C-1] !=0 and tab[pbille->L-1][pbille->C-1] !=-1){pbille->dir = NE;}
+		if(tab[pbille->L-1][pbille->C-1] !=0 and tab[pbille->L-1][pbille->C-1] !=-1){pbille->dir = NE;
+		impacte(tab[pbille->L-1][pbille->C-1]);
+		}
 	}
 	pthread_mutex_unlock(&mutextab);
 	
