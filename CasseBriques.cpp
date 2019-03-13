@@ -126,6 +126,7 @@ void DessineVie(int vie);
 void DessineNiveau(int niveau);
 int nbBriques;
 int nbBilles;
+bool niveauFini;
 
 //Event
 void * eventThread (void *);
@@ -649,8 +650,10 @@ void * niveauThread()
 	
 	while(1)
 	{
+		
 		nbBriques = NB_BRIQUES;
 		nbBilles = 1;
+		niveauFini=false;
 		for(i=0;i<NB_BRIQUES;i++)
 		{
 			pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
