@@ -118,6 +118,15 @@ void HandleBriqueSig(int sig);
 void destructeurbri(void *p);
 pthread_once_t briquecontroler = PTHREAD_ONCE_INIT;
 void initCleBrique();
+
+
+//Niveau
+void * niveauThread();
+void DessineVie(int vie);
+void DessineNiveau(int niveau);
+int nbBriques;
+int nbBilles;
+
 //Event
 void * eventThread (void *);
 
@@ -133,7 +142,7 @@ int main(int argc,char* argv[])
 	sigset_t mask;
 	pthread_t HanleRaquette;
 	pthread_t HandleEvent;
-	pthread_t HandleBrique[NB_BRIQUES];
+	pthread_t HandleNiveau;
   
   EVENT_GRILLE_SDL event;
   char ok;
@@ -188,14 +197,9 @@ int main(int argc,char* argv[])
 //  printf("Attente de 1500 millisecondes...\n");
 //  Attente(1500);
 
-int i;
-	for(i=0;i<NB_BRIQUES;i++)
-	{
-		pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
-	}
 		
 
-
+  pthread_create(&HandleNiveau, NULL, (void *(*) (void *))niveauThread, NULL);
   pthread_join(HandleEvent,NULL);
 
   // Fermeture de la fenetre
@@ -607,7 +611,6 @@ void HandleBriqueSig(int sig)
 	puts(buffer);
 	if(brique->nbTouches < 2)
 		{
-			puts("Je meurt logiquement");
 			effacer(brique->L,brique->C,2);
 			pthread_exit(0);
 			
@@ -616,7 +619,6 @@ void HandleBriqueSig(int sig)
 		}
 	if(brique->nbTouches >= 2)
 	{
-		puts("Je perd en durabilite");
 		brique->nbTouches = brique->nbTouches-1;
 		brique->brise = 1;
 		DessineBrique(brique->L, brique->C, brique->couleur ,brique->brise);
@@ -634,3 +636,59 @@ void initCleBrique()
 	pthread_key_create(&cleBrique, destructeurbri);
 }
 
+
+void * niveauThread()
+{
+	int nbVies =2;
+	int niveau = 1;
+	DessineVie(nbVies);
+	DessineNiveau(niveau);
+	pthread_t HandleBrique[NB_BRIQUES];
+	int i;
+	
+	
+	while(1)
+	{
+		nbBriques = NB_BRIQUES;
+		nbBilles = 1;
+		for(i=0;i<NB_BRIQUES;i++)
+		{
+			pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
+		}
+	pause();
+	}
+	
+}
+
+void DessineNiveau(int niveau)
+{
+	int dizaine, unite;
+	dizaine = niveau /10;
+	unite = niveau - 10*dizaine;
+	EffaceCarre(0,3);
+	EffaceCarre(0,4);
+	if(dizaine == 0)
+	{
+		DessineChiffre(0,3,unite);
+	}
+	else
+	{
+		DessineChiffre(0,3,dizaine);
+		DessineChiffre(0,4,unite);	
+	}
+	
+	
+}
+
+void DessineVie(int vie)
+{	
+
+	int i;
+	
+	for(i=0;i<5;i++){EffaceCarre(0,(9+i));}
+	for(i=0;i<vie;i++)
+	{
+		DessineDiamant(0,(9+i),ROUGE);
+	}
+	
+}
