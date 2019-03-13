@@ -417,7 +417,7 @@ void * briqueThread (S_BRIQUE * briquept)
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
 	SigAct.sa_handler = HandleBriqueSig;
-	SigAct.sa_flags = 0;
+	SigAct.sa_flags = SA_SIGINFO;;
 	sigaction(SIGTRAP,&SigAct, NULL);
 	
 	while(1)
@@ -448,7 +448,7 @@ void * raquetteThread (void *)
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
 	SigAct.sa_handler = HandleRaquetteSig;
-	SigAct.sa_flags = 0;
+	SigAct.sa_flags = SA_SIGINFO;
 	sigaction(SIGUSR1,&SigAct, NULL);
 	sigaction(SIGUSR2,&SigAct, NULL);
 	sigaction(SIGHUP,&SigAct, NULL);
@@ -706,11 +706,11 @@ void * niveauThread()
 		if(niveauterm==1)
 		{
 		niveauterm=0;
-		nbBriques = 1;
+		nbBriques = NB_BRIQUES;
 		pthread_mutex_lock(&mutexNiveauFinit);
 		niveauFini=false;
 		pthread_mutex_unlock(&mutexNiveauFinit);
-		for(i=0;i<1;i++)
+		for(i=0;i<NB_BRIQUES;i++)
 		{
 			pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
 		}
