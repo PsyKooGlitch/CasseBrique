@@ -491,14 +491,6 @@ void destructeurbri(void *p)
 
 puts("Je me libere (Brique)");
 
-
-
-pthread_mutex_lock(&mutexScore);
-score = score +1;
-MAJScore = true;
-pthread_mutex_unlock(&mutexScore);
-pthread_cond_signal(&condScore);
-
 pthread_mutex_lock(&mutexBilleBrique);
 nbBriques = nbBriques - 1;
 pthread_mutex_unlock(&mutexBilleBrique);
@@ -682,6 +674,12 @@ void HandleBriqueSig(int sig)
 void impacte(int qui)
 {
 	pthread_kill(qui,SIGTRAP);
+	pthread_mutex_lock(&mutexScore);
+	score = score +1;
+	MAJScore = true;
+	pthread_mutex_unlock(&mutexScore);
+	pthread_cond_signal(&condScore);
+	
 }
 
 void initCleBrique()
