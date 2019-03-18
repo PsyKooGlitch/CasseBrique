@@ -579,8 +579,11 @@ void HandleRaquetteSig(int sig)
 	
 	if(sig==SIGINT)
 	{
+	 effacer(19,positiondebut,raquettept->longeur);
 	 raquettept->billeSurRaquette = true;
 	 DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
+	 raquettept->longeur = 5;
+	 DessineRaquette2(raquettept->L,raquettept->C,raquettept->longeur);
 	}
 	
 }
