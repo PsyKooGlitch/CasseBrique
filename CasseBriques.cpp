@@ -120,6 +120,12 @@ void destructeurbri(void *p);
 pthread_once_t briquecontroler = PTHREAD_ONCE_INIT;
 void initCleBrique();
 
+//Score
+void * scoreThread ();
+int score;
+pthread_mutex_t mutexScore;
+pthread_cond_t condScore;
+bool MAJScore = true;
 
 //Niveau
 void * niveauThread();
@@ -148,13 +154,15 @@ int main(int argc,char* argv[])
 	pthread_t HanleRaquette;
 	pthread_t HandleEvent;
 	pthread_t HandleNiveau;
-  
+   pthread_t HandleScore;
   EVENT_GRILLE_SDL event;
   char ok;
   pthread_mutex_init(&mutextab,NULL);
   pthread_mutex_init(&mutexBilleBrique,NULL);
   pthread_mutex_init(&mutexNiveauFinit,NULL);
+  pthread_mutex_init(&mutexScore,NULL);
   pthread_cond_init(&condBilleBrique, NULL);
+  pthread_cond_init(&condScore, NULL);
   srand((unsigned)time(NULL));
 	
   // Ouverture de la fenetre graphique
@@ -175,7 +183,7 @@ int main(int argc,char* argv[])
 	sigaddset(&mask, SIGINT);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	
-	
+	pthread_create(&HandleScore, NULL, (void *(*) (void *))scoreThread, NULL);
 	pthread_create(&HanleRaquette, NULL, (void *(*) (void *))raquetteThread, NULL);
 	pthread_create(&HandleEvent, NULL, (void *(*) (void *))eventThread, NULL);
   // Exemple d'utilisation de GrilleSDL et Ressources --> code a supprimer
@@ -473,6 +481,7 @@ pthread_mutex_lock(&mutexBilleBrique);
 nbBilles = nbBilles -1;
 pthread_mutex_unlock(&mutexBilleBrique);
 pthread_cond_signal(&condBilleBrique);
+
 free(p);
 }
 
@@ -481,10 +490,21 @@ void destructeurbri(void *p)
 {
 
 puts("Je me libere (Brique)");
+
+
+
+pthread_mutex_lock(&mutexScore);
+score = score +1;
+MAJScore = true;
+pthread_mutex_unlock(&mutexScore);
+pthread_cond_signal(&condScore);
+
 pthread_mutex_lock(&mutexBilleBrique);
 nbBriques = nbBriques - 1;
 pthread_mutex_unlock(&mutexBilleBrique);
 pthread_cond_signal(&condBilleBrique);
+
+
 free(p);
 }
 
@@ -776,6 +796,37 @@ void DessineVie(int vie)
 	for(i=0;i<vie;i++)
 	{
 		DessineDiamant(0,(9+i),ROUGE);
+	}
+	
+}
+
+
+
+void * scoreThread ()
+{
+int unite, dizaine,centaine, mille;
+	while(1)
+	{
+		pthread_mutex_lock(&mutexScore);
+		while(MAJScore == false)
+		{
+			pthread_cond_wait(&condScore, &mutexScore);
+		}
+	
+		MAJScore = false;
+		mille = score/1000;
+		centaine = (score - (mille*1000)) / 100;
+		dizaine = (score - (mille*1000) - (centaine*100)) / 10;
+		unite = (score - (mille*1000) - (centaine*100) - (dizaine*10)); 
+	
+		DessineChiffre(0,16, mille);
+		DessineChiffre(0,17, centaine);
+		DessineChiffre(0,18, dizaine);
+		DessineChiffre(0,19, unite);
+		char buffer[50];
+		sprintf(buffer, "Score:%d", score);
+		puts(buffer);
+		pthread_mutex_unlock(&mutexScore);
 	}
 	
 }
