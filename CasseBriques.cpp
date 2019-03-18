@@ -110,6 +110,7 @@ void * raquetteThread (S_BILLE *);
 void avancebille(S_BILLE * pbille);
 void DessineBille2(int l, int c, int couleur);
 void impacte(int qui);
+int temps=200;
 
 //Brique
 void DessineBrique2(int l, int c, int couleur, int brise);
@@ -239,7 +240,7 @@ void * billeThread(S_BILLE * pbille)
 	pthread_mutex_unlock(&mutextab);
 	while(1)
 	{
-		Attente(200);
+		Attente(temps);
 		effacer(pbille->L,pbille->C,1);
 		//Test dessous
 		if(pbille->L==20)
@@ -731,7 +732,13 @@ void * niveauThread()
 		}
 		pthread_mutex_unlock(&mutexBilleBrique);
 		niveau = niveau + 1;
+		Attente(1000);
+		temps = temps - (temps/10); 
+		char buffer[50];
+		sprintf(buffer, "Temp: %d", temps);
+		puts(buffer);
 		kill(getpid(), SIGINT);
+		
 		}
 	}
 	
