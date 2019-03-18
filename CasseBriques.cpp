@@ -136,6 +136,9 @@ pthread_key_t macle;
 pthread_key_t cleBille;
 pthread_key_t cleBrique;
 pthread_mutex_t mutextab;
+pthread_mutex_t mutexBilleBrique;
+pthread_mutex_t mutexNiveauFinit;
+pthread_cond_t condBilleBrique;
 //
 int main(int argc,char* argv[])
 {
@@ -148,6 +151,9 @@ int main(int argc,char* argv[])
   EVENT_GRILLE_SDL event;
   char ok;
   pthread_mutex_init(&mutextab,NULL);
+  pthread_mutex_init(&mutexBilleBrique,NULL);
+  pthread_mutex_init(&mutexNiveauFinit,NULL);
+  pthread_cond_init(&condBilleBrique, NULL);
   srand((unsigned)time(NULL));
 	
   // Ouverture de la fenetre graphique
@@ -165,6 +171,7 @@ int main(int argc,char* argv[])
 	sigaddset(&mask, SIGUSR2);
 	sigaddset(&mask, SIGHUP);
 	sigaddset(&mask, SIGTRAP);
+	sigaddset(&mask, SIGINT);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	
 	
@@ -436,6 +443,7 @@ void * raquetteThread (void *)
 	sigaction(SIGUSR1,&SigAct, NULL);
 	sigaction(SIGUSR2,&SigAct, NULL);
 	sigaction(SIGHUP,&SigAct, NULL);
+	sigaction(SIGINT,&SigAct, NULL);
 
 	
 	DessineRaquette2(raquette->L,raquette->C,raquette->longeur);
@@ -450,12 +458,20 @@ void * raquetteThread (void *)
 void destructeurraq(void *p)
 {
 puts("Je me libere (Raquette)");
+pthread_mutex_lock(&mutexBilleBrique);
+nbBriques = nbBriques -1;
+pthread_mutex_unlock(&mutexBilleBrique);
+pthread_cond_signal(&condBilleBrique);
 free(p);
 }
 
 void destructeurbille(void *p)
 {
 puts("Je me libere (Bille)");
+pthread_mutex_lock(&mutexBilleBrique);
+nbBilles = nbBilles -1;
+pthread_mutex_unlock(&mutexBilleBrique);
+pthread_cond_signal(&condBilleBrique);
 free(p);
 }
 
@@ -464,6 +480,10 @@ void destructeurbri(void *p)
 {
 
 puts("Je me libere (Brique)");
+pthread_mutex_lock(&mutexBilleBrique);
+nbBriques = nbBriques - 1;
+pthread_mutex_unlock(&mutexBilleBrique);
+pthread_cond_signal(&condBilleBrique);
 free(p);
 }
 
@@ -541,6 +561,7 @@ void HandleRaquetteSig(int sig)
 	DessineRaquette2(raquettept->L,raquettept->C,raquettept->longeur);
 	}
 	
+	
 	if(sig==SIGHUP and raquettept->billeSurRaquette == true)
 	{
 		raquettept->billeSurRaquette = false;
@@ -554,6 +575,13 @@ void HandleRaquetteSig(int sig)
 		pthread_create(&HandleBille, NULL, (void *(*) (void *))billeThread, pbille);
 		
 	}
+	
+	if(sig==SIGINT)
+	{
+	 raquettept->billeSurRaquette = true;
+	 DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
+	}
+	
 }
 
 void DessineRaquette2(int l, int c, int longeur)
@@ -642,6 +670,7 @@ void * niveauThread()
 {
 	int nbVies =2;
 	int niveau = 1;
+	int niveauterm=1;
 	DessineVie(nbVies);
 	DessineNiveau(niveau);
 	pthread_t HandleBrique[NB_BRIQUES];
@@ -650,15 +679,60 @@ void * niveauThread()
 	
 	while(1)
 	{
-		
-		nbBriques = NB_BRIQUES;
+		DessineNiveau(niveau);
 		nbBilles = 1;
+		if(niveauterm==1)
+		{
+		niveauterm=0;
+		nbBriques = 1;
+		pthread_mutex_lock(&mutexNiveauFinit);
 		niveauFini=false;
-		for(i=0;i<NB_BRIQUES;i++)
+		pthread_mutex_unlock(&mutexNiveauFinit);
+		for(i=0;i<1;i++)
 		{
 			pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
 		}
-	pause();
+		}
+		pthread_mutex_lock(&mutexBilleBrique);
+		while(nbBilles > 0 && nbBriques > 0)
+		pthread_cond_wait(&condBilleBrique, &mutexBilleBrique);
+		pthread_mutex_unlock(&mutexBilleBrique);
+		
+		//Verif
+		pthread_mutex_lock(&mutexBilleBrique);
+		if(nbBilles == 0)
+		{
+			if(nbVies ==0)
+			{
+			DessineGameOver(9,6);
+			pthread_exit(0);
+			}
+			else
+			{
+			 kill(getpid(), SIGINT);
+			 nbVies = nbVies -1;
+			 DessineVie(nbVies);
+			}
+			pthread_mutex_unlock(&mutexBilleBrique);
+		}
+		else
+		{
+		pthread_mutex_unlock(&mutexBilleBrique);
+		puts("okok plus de briques");
+		pthread_mutex_lock(&mutexNiveauFinit);
+		niveauFini=true;
+		pthread_mutex_unlock(&mutexNiveauFinit);
+		niveauterm = 1;
+		puts("On att le nbr de bille");
+		pthread_mutex_lock(&mutexBilleBrique);
+		while(nbBilles > 0)
+		{
+		pthread_cond_wait(&condBilleBrique, &mutexBilleBrique);
+		}
+		pthread_mutex_unlock(&mutexBilleBrique);
+		niveau = niveau + 1;
+		kill(getpid(), SIGINT);
+		}
 	}
 	
 }
