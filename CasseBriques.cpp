@@ -817,19 +817,19 @@ void * niveauThread()
 			pthread_mutex_unlock(&mutexNiveauFinit);
 			for(i=0;i<NB_BRIQUES;i++)
 			{
-				int randombonus = random(3);
-				if(randombonus==3)
+				int randombonus = random(2);
+				if(randombonus==1)
 				{
 					Briques[i].bonus =  15;
 				}else
 				{
 					if(randombonus == 2)
 					{
-						Briques[i].bonus =  10;
+						Briques[i].bonus =  5;
 					}
 					else
 					{
-						Briques[i].bonus =  5;
+						Briques[i].bonus = 10;
 					}
 				}
 				
