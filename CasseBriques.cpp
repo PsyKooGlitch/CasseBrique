@@ -23,6 +23,8 @@
 #define SO                       100003
 #define SE                       100004
 
+//Macro random
+#define random(n)(rand()%(n)+1)
 int tab[NB_LIGNES][NB_COLONNES]
 ={ {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1},
    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -634,7 +636,9 @@ void HandleRaquetteSig(int sig)
 		pbille->L = raquettept->L-1;
 		pbille->C = raquettept->C;
 		pbille->couleur = ROUGE;
-		pbille->dir = NO;	
+		int randomdir = random(2);
+		if(randomdir == 1){pbille->dir = NO;}
+		else{pbille->dir = NE;}
 		pthread_create(&HandleBille, NULL, (void *(*) (void *))billeThread, pbille);
 		
 	}
@@ -807,7 +811,22 @@ void * niveauThread()
 			pthread_mutex_unlock(&mutexNiveauFinit);
 			for(i=0;i<NB_BRIQUES;i++)
 			{
-				Briques[i].bonus =  10;
+				int randombonus = random(3);
+				if(randombonus==3)
+				{
+					Briques[i].bonus =  15;
+				}else
+				{
+					if(randombonus == 2)
+					{
+						Briques[i].bonus =  10;
+					}
+					else
+					{
+						Briques[i].bonus =  5;
+					}
+				}
+				
 				pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
 			}
 		}
@@ -1011,13 +1030,7 @@ void DessineBonus2(int l, int c, int couleur)
 			}
 			pthread_mutex_unlock(&mutextab);
 			pthread_exit(0);
-		}
-		else
-		{
-		//Redessiner la brique donc pas de deplacement en tab
-		}
-		
-		
+		}	
 	}
 	else
 	{
