@@ -46,7 +46,7 @@ int tab[NB_LIGNES][NB_COLONNES]
    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
    {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}};
 
-#define NB_BONUS_JAUNE  5      // la raquette s'allonge
+#define NB_BONUS_JAUNE  15      // la raquette s'allonge
 #define NB_BONUS_VERT   5      // la raquette se retrecit
 #define NB_BONUS_MAUVE  10     // multi-billes
 
@@ -84,7 +84,7 @@ typedef struct
 }S_BONUS;
 
 
-#define NB_BRIQUES      56     // nombre de briques au depart
+#define NB_BRIQUES      1     // nombre de briques au depart
 S_BRIQUE Briques[]
 ={ {2,2,GRIS,1,0,0},{2,4,GRIS,1,0,0},{2,6,GRIS,1,0,0},{2,8,GRIS,1,0,0},
    {2,10,GRIS,1,0,0},{2,12,GRIS,1,0,0},{2,14,GRIS,1,0,0},{2,16,GRIS,1,0,0},
@@ -145,7 +145,9 @@ bool niveauFini;
 void * eventThread (void *);
 
 //Bonus
-void * bonusThread();
+void * bonusThread(S_BONUS * bonuspt);
+void DessineBonus2(int l, int c, int couleur);
+
 
 //Def
 pthread_key_t macle;
@@ -155,6 +157,7 @@ pthread_mutex_t mutextab;
 pthread_mutex_t mutexBilleBrique;
 pthread_mutex_t mutexNiveauFinit;
 pthread_cond_t condBilleBrique;
+pthread_cond_t condBrique;
 //
 int main(int argc,char* argv[])
 {
@@ -172,6 +175,7 @@ int main(int argc,char* argv[])
   pthread_mutex_init(&mutexNiveauFinit,NULL);
   pthread_mutex_init(&mutexScore,NULL);
   pthread_cond_init(&condBilleBrique, NULL);
+  pthread_cond_init(&condBrique, NULL);
   pthread_cond_init(&condScore, NULL);
   srand((unsigned)time(NULL));
 	
@@ -298,7 +302,7 @@ void * billeThread(S_BILLE * pbille)
 		}
 		
 	//Mutex pour verif obs
-	//pthread_mutex_lock(&mutextab);		
+	pthread_mutex_lock(&mutextab);		
 	//Objet au dessus
 	if(pbille->dir == NE or pbille->dir == NO)
 	{
@@ -372,7 +376,7 @@ void * billeThread(S_BILLE * pbille)
 		impacte(tab[pbille->L-1][pbille->C-1]);
 		}
 	}
-	//pthread_mutex_unlock(&mutextab);
+	pthread_mutex_unlock(&mutextab);
 	
 	
 		
@@ -412,8 +416,10 @@ switch (pbille->dir){
 void * briqueThread (S_BRIQUE * briquept)
 {
 	sigset_t mask;
+	pthread_t HandleBonus;
 	struct sigaction SigAct;
 	S_BRIQUE * brique;
+	S_BONUS bonus;
 	pthread_once(&briquecontroler, initCleBrique);
 	brique = (S_BRIQUE *)malloc(sizeof(S_BRIQUE));
 	memcpy(brique, briquept, sizeof(S_BRIQUE));
@@ -428,8 +434,15 @@ void * briqueThread (S_BRIQUE * briquept)
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
 	SigAct.sa_handler = HandleBriqueSig;
-	SigAct.sa_flags = SA_SIGINFO;;
+	SigAct.sa_flags = SA_SIGINFO;
 	sigaction(SIGTRAP,&SigAct, NULL);
+	
+	//Thread bonnus
+	bonus.L = brique->L;
+	bonus.C = brique->C;
+	bonus.couleur = brique->bonus;
+	pthread_create(&HandleBonus, NULL, (void *(*) (void *))bonusThread, &bonus);
+	
 	
 	while(1)
 	{
@@ -490,7 +503,7 @@ nbBilles = nbBilles -1;
 pthread_mutex_unlock(&mutexBilleBrique);
 pthread_cond_signal(&condBilleBrique);
 
-//free(p);
+free(p);
 }
 
 
@@ -499,13 +512,13 @@ void destructeurbri(void *p)
 
 puts("Je me libere (Brique)");
 
-//pthread_mutex_lock(&mutexBilleBrique);
+pthread_mutex_lock(&mutexBilleBrique);
 nbBriques = nbBriques - 1;
-//pthread_mutex_unlock(&mutexBilleBrique);
+pthread_mutex_unlock(&mutexBilleBrique);
 pthread_cond_signal(&condBilleBrique);
+pthread_cond_signal(&condBrique);
 
-
-//free(p);
+free(p);
 }
 
 void * eventThread (void *)
@@ -612,45 +625,45 @@ void DessineRaquette2(int l, int c, int longeur)
 {
 	int i;
 	int positiondebut = c- ((longeur-1)/2);
-	//pthread_mutex_lock(&mutextab);
+	pthread_mutex_lock(&mutextab);
 	for(i=0;i<longeur;i++)
 	{
 		tab[l][positiondebut+i] = pthread_self();
 	}
 	DessineRaquette(l,c,longeur);
-	//pthread_mutex_unlock(&mutextab);
+	pthread_mutex_unlock(&mutextab);
 }
 
 void DessineBille2(int l, int c, int couleur)
 {
-	//pthread_mutex_lock(&mutextab);
+	pthread_mutex_lock(&mutextab);
 	tab[l][c] = -2;
 	DessineBille(l,c,couleur);
-	//pthread_mutex_unlock(&mutextab);
+	pthread_mutex_unlock(&mutextab);
 }
 
 
 
 void DessineBrique2(int l, int c, int couleur, int brise)
 {
-	//pthread_mutex_lock(&mutextab);
+	pthread_mutex_lock(&mutextab);
 	tab[l][c] = pthread_self();
 	tab[l][c+1] = pthread_self();
 	DessineBrique(l,c,couleur,brise);
-	//pthread_mutex_unlock(&mutextab);
+	pthread_mutex_unlock(&mutextab);
 }
 
 void effacer(int l,int c, int longeur)
 {
 	int i;
-	//pthread_mutex_lock(&mutextab);
+	pthread_mutex_lock(&mutextab);
 	for(i=0;i<longeur;i++)
 	{
 		EffaceCarre(l,c);
 		tab[l][c] = 0;
 		c++;
 	}
-	//pthread_mutex_unlock(&mutextab);
+	pthread_mutex_unlock(&mutextab);
 }
 
 void HandleBriqueSig(int sig)
@@ -704,13 +717,9 @@ void * niveauThread()
 	DessineVie(nbVies);
 	DessineNiveau(niveau);
 	pthread_t HandleBrique[NB_BRIQUES];
-	pthread_t HandleBonus[NB_BRIQUES];
 	int i;
 	
-	S_BONUS bonus;
-	bonus.L = 10;
-	bonus.C = 10;
-	bonus.couleur = 5;
+
 	
 	while(1)
 	{
@@ -718,17 +727,16 @@ void * niveauThread()
 		nbBilles = 1;
 		if(niveauterm==1)
 		{
-		niveauterm=0;
-		nbBriques = NB_BRIQUES;
-		pthread_mutex_lock(&mutexNiveauFinit);
-		niveauFini=false;
-		pthread_mutex_unlock(&mutexNiveauFinit);
-		for(i=0;i<NB_BRIQUES;i++)
-		{
-			pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
-			
-		}
-			pthread_create(&HandleBonus[i], NULL, (void *(*) (void *))bonusThread, &bonus);
+			niveauterm=0;
+			nbBriques = NB_BRIQUES;
+			pthread_mutex_lock(&mutexNiveauFinit);
+			niveauFini=false;
+			pthread_mutex_unlock(&mutexNiveauFinit);
+			for(i=0;i<NB_BRIQUES;i++)
+			{
+				Briques[i].bonus =  5;
+				pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
+			}
 		}
 		pthread_mutex_lock(&mutexBilleBrique);
 		while(nbBilles > 0 && nbBriques > 0)
@@ -846,13 +854,32 @@ int unite, dizaine,centaine, mille;
 
 
 
-void * bonusThread()
+void * bonusThread(S_BONUS * bonuspt)
 {
+	S_BONUS * bonus;
+	bonus = (S_BONUS *)malloc(sizeof(S_BONUS));
+	memcpy(bonus, bonuspt, sizeof(S_BONUS));
 
+	pthread_mutex_lock(&mutextab);
+	while(tab[bonus->L][bonus->C] != 0)
+	{
+	pthread_cond_wait(&condBrique, &mutextab);
+	}
+	pthread_mutex_unlock(&mutextab);
+	
+	DessineBonus2(bonus->L, bonus->C, bonus->couleur);
 
-puts("bonus je me lance");
-
+	pthread_exit(0);
 
 }
 
+void DessineBonus2(int l, int c, int couleur)
+{
+	pthread_mutex_lock(&mutextab);
+	tab[l][c] = -3;
+	int newcol=0;
+	if(couleur == 5){newcol = JAUNE;}
+	DessineDiamant(l,c,newcol);
+	pthread_mutex_unlock(&mutextab);
+}
 
