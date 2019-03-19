@@ -653,24 +653,30 @@ void HandleRaquetteSig(int sig)
 	
 	if(sig==SIGSYS)
 	{
+		effacer(19,positiondebut,raquettept->longeur);
 		puts("recu bonus jaune");//S'allonge
 		alarm(0);
 		raquettept->longeur  = 7;
 		alarm(15);
+		DessineRaquette2(raquettept->L,raquettept->C,raquettept->longeur);
 	}
 	
 	if(sig==SIGPIPE)
 	{
+		effacer(19,positiondebut,7);
 		puts("recu bonus vert");//Retrecit
 		alarm(0);
 		raquettept->longeur  = 3;
 		alarm(15);
+		DessineRaquette2(raquettept->L,raquettept->C,raquettept->longeur);
 	}
 	
 	if(sig==SIGALRM)
 	{
+		effacer(19,positiondebut,7);
 		puts("recu alarm");//Retour normal
 		raquettept->longeur  = 5;
+		DessineRaquette2(raquettept->L,raquettept->C,raquettept->longeur);
 	}
 	
 }
