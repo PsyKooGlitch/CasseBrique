@@ -594,15 +594,26 @@ void HandleRaquetteSig(int sig)
 	if(sig == SIGUSR1){
 		 if(positiondebut > 0)
 		 {
-		 	
-		 	effacer(19,raquettept->C,raquettept->longeur);
-		 	raquettept->C = raquettept->C - 1;
-		 	if(raquettept->billeSurRaquette == true)
-		 	{	
-		 		effacer(raquettept->L-1,raquettept->C+1,1);
-		 		DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
+		 	pthread_mutex_lock(&mutextab);
+		 	if(tab[raquettept->L][positiondebut-1] == 0)
+		 	{
+		 		pthread_mutex_unlock(&mutextab);
+			 	
+			 	effacer(19,raquettept->C,raquettept->longeur);
+			 	raquettept->C = raquettept->C - 1;
+			 	if(raquettept->billeSurRaquette == true)
+			 	{	
+			 		effacer(raquettept->L-1,raquettept->C+1,1);
+			 		DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
 
+			 	}
 		 	}
+		 	else
+		 	{
+		 	pthread_mutex_unlock(&mutextab);
+		 	}
+		 	
+		 
 		 	
 		 }
 	}
@@ -611,14 +622,23 @@ void HandleRaquetteSig(int sig)
 		if(sig == SIGUSR2){
 			if(positionfin < 19)
 			{
-				effacer(19,positiondebut,raquettept->longeur);
-				raquettept->C = raquettept->C + 1;
-				if(raquettept->billeSurRaquette == true)
-		 		{	
-		 			effacer(raquettept->L-1,raquettept->C-1,1);
-		 			DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
-		 		}
-				
+				pthread_mutex_lock(&mutextab);
+			 	if(tab[raquettept->L][positionfin+ 1] == 0)
+			 	{
+			 		pthread_mutex_unlock(&mutextab);
+				 	
+					effacer(19,positiondebut,raquettept->longeur);
+					raquettept->C = raquettept->C + 1;
+					if(raquettept->billeSurRaquette == true)
+			 		{	
+			 			effacer(raquettept->L-1,raquettept->C-1,1);
+			 			DessineBille2(raquettept->L-1,raquettept->C,ROUGE);
+			 		}
+			 	}
+			 	else
+			 	{
+			 	pthread_mutex_unlock(&mutextab);
+			 	}
 			}
 		}
 	}
@@ -817,7 +837,7 @@ void * niveauThread()
 			pthread_mutex_unlock(&mutexNiveauFinit);
 			for(i=0;i<NB_BRIQUES;i++)
 			{
-				int randombonus = random(3);
+				int randombonus = random(2);
 				if(randombonus==1)
 				{
 					Briques[i].bonus =  15;
