@@ -448,6 +448,10 @@ void * briqueThread (S_BRIQUE * briquept)
 	sigaddset(&mask, SIGUSR1);
 	sigaddset(&mask, SIGUSR2);
 	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGPIPE);
+	sigaddset(&mask, SIGSYS);
+	sigaddset(&mask, SIGALRM);
 	sigaddset(&mask, SIGEMT);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
@@ -487,6 +491,7 @@ void * raquetteThread (void *)
 	 	//Masque signal
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGTRAP);
+	sigaddset(&mask, SIGURG);
 	sigaddset(&mask, SIGEMT);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
@@ -881,6 +886,25 @@ void * niveauThread()
 	pthread_t HandleBrique[NB_BRIQUES];
 	int i;
 	
+	
+		//Masque les signaux
+	sigset_t mask;
+	
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGUSR2);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGTRAP);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGURG);
+	sigaddset(&mask, SIGPIPE);
+	sigaddset(&mask, SIGSYS);
+	sigaddset(&mask, SIGALRM);
+	sigaddset(&mask, SIGEMT);
+	sigprocmask(SIG_SETMASK, &mask,NULL);
+	
+	
+	
 
 	
 	while(1)
@@ -1000,6 +1024,25 @@ void DessineVie(int vie)
 void * scoreThread ()
 {
 int unite, dizaine,centaine, mille;
+
+	//Masque les signaux
+	sigset_t mask;
+	
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGUSR2);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGTRAP);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGURG);
+	sigaddset(&mask, SIGPIPE);
+	sigaddset(&mask, SIGSYS);
+	sigaddset(&mask, SIGALRM);
+	sigaddset(&mask, SIGEMT);
+	sigprocmask(SIG_SETMASK, &mask,NULL);
+
+
+
 	while(1)
 	{
 		pthread_mutex_lock(&mutexScore);
@@ -1036,6 +1079,23 @@ void * bonusThread(S_BONUS * bonuspt)
 	int letemps=0;
 	bool fin=false;
 	letemps = temps;
+	
+		//Masque les signaux
+	sigset_t mask;
+	
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGUSR1);
+	sigaddset(&mask, SIGUSR2);
+	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGTRAP);
+	sigaddset(&mask, SIGINT);
+	sigaddset(&mask, SIGURG);
+	sigaddset(&mask, SIGPIPE);
+	sigaddset(&mask, SIGSYS);
+	sigaddset(&mask, SIGALRM);
+	sigaddset(&mask, SIGEMT);
+	sigprocmask(SIG_SETMASK, &mask,NULL);
+	
 	
 	
 	//Déplacement
