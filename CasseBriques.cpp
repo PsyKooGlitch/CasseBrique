@@ -208,6 +208,7 @@ int main(int argc,char* argv[])
 	sigaddset(&mask, SIGPIPE);
 	sigaddset(&mask, SIGSYS);
 	sigaddset(&mask, SIGALRM);
+	sigaddset(&mask, SIGEMT);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	
 	pthread_create(&HandleScore, NULL, (void *(*) (void *))scoreThread, NULL);
@@ -237,9 +238,18 @@ void Attente(int milli)
 
 void * billeThread(S_BILLE * pbillept)
 {
+	pthread_once(&billecontroler, initCleBille);
 	S_BILLE * pbille;
 	pbille = (S_BILLE *)malloc(sizeof(S_BILLE));
 	memcpy(pbille, pbillept, sizeof(S_BILLE));
+
+	if(pthread_setspecific(cleBille,(void*)pbille) != 0)
+	{
+		puts("error setspecific bille");
+	}
+
+
+	
 	sigset_t mask;
 	
 	sigemptyset(&mask);
@@ -261,10 +271,9 @@ void * billeThread(S_BILLE * pbillept)
 	SigAct.sa_flags = SA_SIGINFO;
 	sigaction(SIGEMT,&SigAct, NULL);
 
-	pthread_once(&billecontroler, initCleBille);
-	pthread_setspecific(cleBille,pbille);
-	
-	
+
+
+ 	
 	pthread_mutex_lock(&mutextab);
 	DessineBille(pbille->L,pbille->C,pbille->couleur);
 	tab[pbille->L][pbille->C] = -2;
@@ -439,6 +448,7 @@ void * briqueThread (S_BRIQUE * briquept)
 	sigaddset(&mask, SIGUSR1);
 	sigaddset(&mask, SIGUSR2);
 	sigaddset(&mask, SIGHUP);
+	sigaddset(&mask, SIGEMT);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
 	struct sigaction SigAct;
@@ -477,6 +487,7 @@ void * raquetteThread (void *)
 	 	//Masque signal
 	sigemptyset(&mask);
 	sigaddset(&mask, SIGTRAP);
+	sigaddset(&mask, SIGEMT);
 	sigprocmask(SIG_SETMASK, &mask,NULL);
 	//Arme les sig
 	SigAct.sa_handler = HandleRaquetteSig;
@@ -488,6 +499,7 @@ void * raquetteThread (void *)
 	sigaction(SIGSYS,&SigAct, NULL);
 	sigaction(SIGPIPE,&SigAct, NULL);
 	sigaction(SIGALRM,&SigAct, NULL);
+	
 	
 	DessineRaquette2(raquette->L,raquette->C,raquette->longeur);
 	DessineBille2(raquette->L-1,raquette->C,ROUGE);
@@ -561,19 +573,46 @@ void * eventThread (void *)
 
 void HandleBilleSig(int sig)
 {
+	pthread_t HandleBille;
 	
 	puts("bille handler");
-	S_BILLE * bille;
- 	bille = (S_BILLE *)pthread_getspecific(cleBille);
+		char buffer[50];
+	sprintf(buffer, "Je suis la bille %d", pthread_self());
+	puts(buffer);
+	
+	S_BILLE * bille = (S_BILLE *)pthread_getspecific(cleBille);
  	if(bille == NULL)
  	{
  	puts("error");
  	}
  	else
  	{
- 	 	char buffer[50];
- 		sprintf(buffer, "Ma couleur: %d",bille->L);
- 		puts(buffer);
+ 	
+ 		S_BILLE *newbille = (S_BILLE *)malloc(sizeof(S_BILLE));
+ 		memcpy(newbille, bille, sizeof(S_BILLE));
+ 		switch(bille->dir)
+ 		{
+ 			case NE:
+ 				bille->dir = NO; 
+ 				newbille->dir = SE;
+ 			break;
+ 			case NO:
+ 				bille->dir = NE;
+ 				newbille->dir = SO;
+ 			break;
+  			case SE:
+ 				bille->dir = NO; 
+ 				newbille->dir = SE;
+ 			break;
+ 			case SO:
+ 				bille->dir = NE;
+ 				newbille->dir = SO;
+ 			break;
+ 		}
+ 		pthread_mutex_lock(&mutexBilleBrique);
+ 		nbBilles = nbBilles +1;
+ 		pthread_mutex_unlock(&mutexBilleBrique);
+ 		pthread_create(&HandleBille, NULL, (void *(*) (void *))billeThread, newbille);	
  	}
 
 }
@@ -588,6 +627,10 @@ void HandleRaquetteSig(int sig)
 	pthread_t HandleBille;
 	//Recup de la variable specifique
 	raquettept =  (S_RAQUETTE *)pthread_getspecific(macle);
+	if(raquettept==NULL)
+	{
+		puts("Error get raquette");
+	}
 	positiondebut = raquettept->C - ((raquettept->longeur-1)/2);
 	positionfin = raquettept->C + ((raquettept->longeur-1)/2);
 	if(sig==SIGUSR1 or sig==SIGUSR2){
@@ -761,38 +804,44 @@ void HandleBriqueSig(int sig)
 
 	S_BRIQUE * brique;
  	brique = (S_BRIQUE *)pthread_getspecific(cleBrique);
- 	
-
-	if(sig == SIGURG)
-	{
-		DessineBrique(brique->L, brique->C, brique->couleur ,brique->brise);
+ 	if(brique != NULL)
+ 	{
+	 	if(sig == SIGURG)
+		{
+			DessineBrique(brique->L, brique->C, brique->couleur ,brique->brise);
 	
-	}
+		}
+		else
+		{
+				//Toucher 
+			if(brique->nbTouches < 2)
+				{
+					effacer(brique->L,brique->C,2);
+					//Thread bonnus
+					pthread_t HandleBonus;
+					S_BONUS bonus;
+					bonus.L = brique->L;
+					bonus.C = brique->C;
+					bonus.couleur = brique->bonus;
+					pthread_create(&HandleBonus, NULL, (void *(*) (void *))bonusThread, &bonus);
+					pthread_exit(0);
+			
+			
+			
+				}
+			if(brique->nbTouches >= 2)
+			{
+				brique->nbTouches = brique->nbTouches-1;
+				brique->brise = 1;
+				DessineBrique(brique->L, brique->C, brique->couleur ,brique->brise);
+			}
+		}
+ 	}
 	else
 	{
-			//Toucher 
-		if(brique->nbTouches < 2)
-			{
-				effacer(brique->L,brique->C,2);
-				//Thread bonnus
-				pthread_t HandleBonus;
-				S_BONUS bonus;
-				bonus.L = brique->L;
-				bonus.C = brique->C;
-				bonus.couleur = brique->bonus;
-				pthread_create(&HandleBonus, NULL, (void *(*) (void *))bonusThread, &bonus);
-				pthread_exit(0);
-			
-			
-			
-			}
-		if(brique->nbTouches >= 2)
-		{
-			brique->nbTouches = brique->nbTouches-1;
-			brique->brise = 1;
-			DessineBrique(brique->L, brique->C, brique->couleur ,brique->brise);
-		}
+	puts("Erreur get brique");
 	}
+
 
 
 }
@@ -847,13 +896,13 @@ void * niveauThread()
 			pthread_mutex_unlock(&mutexNiveauFinit);
 			for(i=0;i<NB_BRIQUES;i++)
 			{
-				int randombonus = random(2);
-				if(randombonus==1)
+				int randombonus = random(5);
+				if(randombonus== 1 or randombonus ==2)
 				{
 					Briques[i].bonus =  15;
 				}else
 				{
-					if(randombonus == 2)
+					if(randombonus == 3 or randombonus == 4)
 					{
 						Briques[i].bonus =  5;
 					}
@@ -862,7 +911,6 @@ void * niveauThread()
 						Briques[i].bonus = 10;
 					}
 				}
-				
 				pthread_create(&HandleBrique[i], NULL, (void *(*) (void *))briqueThread, &Briques[i]);
 			}
 		}
@@ -898,7 +946,7 @@ void * niveauThread()
 		pthread_mutex_lock(&mutexBilleBrique);
 		while(nbBilles > 0)
 		{
-		pthread_cond_wait(&condBilleBrique, &mutexBilleBrique);
+			pthread_cond_wait(&condBilleBrique, &mutexBilleBrique);
 		}
 		pthread_mutex_unlock(&mutexBilleBrique);
 		niveau = niveau + 1;
@@ -988,7 +1036,6 @@ void * bonusThread(S_BONUS * bonuspt)
 	int letemps=0;
 	bool fin=false;
 	letemps = temps;
-
 	
 	
 	//Déplacement
@@ -1024,10 +1071,8 @@ void effacerBonus(int l, int c)
 {
 		if(tab[l][c] != -3 and tab[l][c] != 0)
 		{
-
-		//Demande a la brique de se redessiner
-		pthread_kill(tab[l][c],SIGURG);
-		
+			//Demande a la brique de se redessiner
+			pthread_kill(tab[l][c],SIGURG);
 		}
 		else
 		{
