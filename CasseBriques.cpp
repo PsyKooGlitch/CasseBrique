@@ -673,6 +673,11 @@ void HandleRaquetteSig(int sig)
 	
 	if(sig==SIGSYS)
 	{
+		pthread_mutex_lock(&mutexScore);
+		score =score +1;
+		MAJScore = true;
+		pthread_mutex_unlock(&mutexScore);
+		pthread_cond_signal(&condScore);
 		effacer(19,positiondebut,raquettept->longeur);
 		puts("recu bonus jaune");//S'allonge
 		alarm(0);
@@ -683,6 +688,11 @@ void HandleRaquetteSig(int sig)
 	
 	if(sig==SIGPIPE)
 	{
+		pthread_mutex_lock(&mutexScore);
+		score =score +1;
+		MAJScore = true;
+		pthread_mutex_unlock(&mutexScore);
+		pthread_cond_signal(&condScore);
 		effacer(19,positiondebut,7);
 		puts("recu bonus vert");//Retrecit
 		alarm(0);
